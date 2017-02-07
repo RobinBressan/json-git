@@ -1,7 +1,7 @@
 {
   "name": "json-git",
   "version": "0.1.0",
-  "description": "A pure JS local Git to versionnize any JSON",
+  "description": "A pure JS local Git to versionize any JSON",
   "main": "./lib/createRepository.js",
   "scripts": {
     "build": "NODE_ENV=production babel --out-dir=lib --stage=0 --ignore=*Spec.js src",

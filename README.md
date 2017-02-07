@@ -1,6 +1,6 @@
 # json-git
 
-A pure JS local Git to versionnize any JSON.
+A pure JS local Git to versionize any JSON.
 
 ## Installation
 
