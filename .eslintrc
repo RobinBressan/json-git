@@ -1,0 +1,13 @@
+{
+    "env": {
+        "node": true,
+        "mocha": true,
+    },
+    "extends": "airbnb-base",
+    "rules": {
+        "import/no-extraneous-dependencies": ["error", {
+          "devDependencies": ["**/*Spec.js"]
+        }],
+        "indent": [2, 4],
+    }
+}
