@@ -1,4 +1,4 @@
-# json-git
+# json-git [![Build Status](https://travis-ci.org/RobinBressan/json-git.svg?branch=master)](https://travis-ci.org/RobinBressan/json-git)
 
 A pure JS local Git to versionize any JSON.
 
