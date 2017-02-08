@@ -2,6 +2,12 @@
 
 A pure JS local Git to versionize any JSON.
 
+## Why should I using this?
+
+The purpose of **json-git** is not to replace Git.
+
+It is an experiment about bringing Git to the frontend for any Javascript application (like a react application).
+
 ## Installation
 
 It is avaible through npm:
@@ -14,7 +20,7 @@ npm install json-git
 
 ### Create a repository
 
-json-git exports only one method `createRepository`:
+**json-git** exports only one method `createRepository`:
 
 ```js
 import createRepository from 'json-git';
@@ -56,7 +62,7 @@ This will display:
 
 ### Create your first branch
 
-In json-git you always have a `master` branch but you can create some others as many as you want:
+In **json-git** you always have a `master` branch but you can create some others as many as you want:
 
 ```js
 repository.checkout('dev', true); // true means the branch is new
