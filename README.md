@@ -2,7 +2,7 @@
 
 A pure JS local Git to versionize any JSON.
 
-## Why should I using this?
+## Why should I use this?
 
 The purpose of **json-git** is not to replace Git.
 
