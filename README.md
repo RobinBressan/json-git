@@ -2,6 +2,8 @@
 
 A pure JS local Git to versionize any JSON.
 
+If you want to use it with [Redux](https://github.com/reactjs/redux) find the official bindings here: **[json-git-redux](https://github.com/RobinBressan/json-git-redux/)**.
+
 ## Why should I use this?
 
 The purpose of **json-git** is not to replace Git.
