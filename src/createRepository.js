@@ -41,6 +41,12 @@ export default function createRepository(snapshot) {
         return refStore.read('branch').value;
     }
 
+    function moveDetachedHead(commitHash) {
+        refStore.write({
+            head: commitHash,
+        }, 'detached');
+    }
+
     function moveHead(branch, commitHash) {
         const previousHeads = refStore.read('heads');
         refStore.write({
@@ -49,12 +55,24 @@ export default function createRepository(snapshot) {
         }, 'heads');
     }
 
+    function hasDetachedHead() {
+        return refStore.has('detached');
+    }
+
     function hasHead(branch) {
         return !!refStore.read('heads')[branch];
     }
 
+    function getDetachedHead() {
+        return refStore.read('detached').head;
+    }
+
     function getHead(branch) {
         return refStore.read('heads')[branch];
+    }
+
+    function removeDetachedHead() {
+        refStore.remove('detached');
     }
 
     function removeHead(branch) {
@@ -71,11 +89,15 @@ export default function createRepository(snapshot) {
     }
 
     refStore.subscribe(() => emitter.emit('write', {
-        head: getHead(getCurrentBranch()),
+        head: hasDetachedHead() ? getDetachedHead() : getHead(getCurrentBranch()),
     }));
 
     const repository = {
         get branch() {
+            if (hasDetachedHead()) {
+                throw new Error(`You are in detached mode on ${getDetachedHead()}`);
+            }
+
             return getCurrentBranch();
         },
 
@@ -83,8 +105,12 @@ export default function createRepository(snapshot) {
             return Object.keys(refStore.read('heads'));
         },
 
+        get detached() {
+            return hasDetachedHead();
+        },
+
         get head() {
-            return getHead(repository.branch);
+            return hasDetachedHead() ? getDetachedHead() : getHead(repository.branch);
         },
 
         get log() {
@@ -131,23 +157,37 @@ export default function createRepository(snapshot) {
                 parent: repository.head,
             });
 
-            moveHead(repository.branch, commitHash);
+            if (hasDetachedHead()) {
+                moveDetachedHead(commitHash);
+            } else {
+                moveHead(repository.branch, commitHash);
+            }
 
             return commitHash;
         },
 
-        checkout(nextBranch, create = false) {
-            if (create) {
-                if (hasHead(nextBranch)) {
-                    throw new Error(`Branch ${nextBranch} already exists.`);
-                }
+        checkout(target, create = false) {
+            if (commitStore.has(target)) {
+                moveDetachedHead(target);
 
-                moveHead(nextBranch, repository.head);
-            } else if (!hasHead(nextBranch)) {
-                throw new Error(`Branch ${nextBranch} does not exists.`);
+                return repository;
             }
 
-            updateBranch(nextBranch);
+            if (create) {
+                if (hasHead(target)) {
+                    throw new Error(`Branch ${target} already exists.`);
+                }
+
+                moveHead(target, repository.head);
+            } else if (!hasHead(target)) {
+                throw new Error(`Branch ${target} does not exists.`);
+            }
+
+            updateBranch(target);
+
+            if (hasDetachedHead()) {
+                removeDetachedHead();
+            }
 
             return repository;
         },
@@ -178,26 +218,28 @@ export default function createRepository(snapshot) {
             );
         },
 
-        merge(author, branch, resolver) {
-            if (!hasHead(branch)) {
-                throw new Error(`Branch ${branch} doesn't exist`);
+        merge(author, target, resolver) {
+            if (!commitStore.has(target) && !hasHead(target)) {
+                throw new Error(`Branch ${target} doesn't exist`);
             }
+
+            const targetHead = commitStore.has(target) ? target : getHead(target);
 
             const refCommitHash = findReferenceCommitHash(
                 repository.head,
-                getHead(branch),
+                targetHead,
                 commitStore,
             );
 
             const mergePatch = buildMergePatch(
                 repository.diff(refCommitHash, repository.head),
-                repository.diff(refCommitHash, getHead(branch)),
+                repository.diff(refCommitHash, targetHead),
                 resolver,
             );
 
             return repository.commit(
                 author,
-                `Merge of ${branch} into ${repository.branch}`,
+                `Merge of ${target} into ${repository.branch}`,
                 repository.apply(mergePatch),
             );
         },

@@ -84,4 +84,10 @@ describe('createStore()', () => {
         expect(subscriber2).toHaveBeenCalledWith(hash2);
         expect(subscriber2.calls.length).toBe(2);
     });
+
+    it('should test if a hash exists when has() is called', () => {
+        const hash = store.write({ hello: 'world' });
+        expect(store.has(hash)).toBe(true);
+        expect(store.has('foo')).toBe(false);
+    });
 });

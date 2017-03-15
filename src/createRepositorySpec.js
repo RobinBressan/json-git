@@ -100,6 +100,70 @@ describe('createRepository()', () => {
         expect(repository.log[lastCommitHash].parent).toEqual(firstCommitHash);
     });
 
+    it('should expose a checkout() method to checkout a commit in detached mode', () => {
+        repository.commit('robin', 'I commit', {
+            foo: 'bar',
+            child: {
+                bar: 'foo',
+            },
+        });
+
+        const secondCommitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar2',
+            child: {
+                bar: 'foo2',
+            },
+        });
+
+        const thirdCommitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar3',
+            child: {
+                bar: 'foo3',
+            },
+        });
+
+        repository.checkout(secondCommitHash);
+
+        expect(repository.tree).toEqual({
+            foo: 'bar2',
+            child: {
+                bar: 'foo2',
+            },
+        });
+        expect(repository.head).toBe(secondCommitHash);
+        expect(repository.detached).toBe(true);
+
+        const fourthCommitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar4',
+            child: {
+                bar: 'foo4',
+            },
+        });
+
+        expect(repository.log[fourthCommitHash].parent).toEqual(secondCommitHash);
+
+        repository.checkout('master');
+
+        expect(repository.branch).toBe('master');
+        expect(repository.detached).toBe(false);
+        expect(repository.tree).toEqual({
+            foo: 'bar3',
+            child: {
+                bar: 'foo3',
+            },
+        });
+        expect(repository.head).toBe(thirdCommitHash);
+
+        const lastCommitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar4',
+            child: {
+                bar: 'foo4',
+            },
+        });
+
+        expect(repository.log[lastCommitHash].parent).toEqual(thirdCommitHash);
+    });
+
     it('should trigger an error when trying to checkout an unknown branch', () => {
         expect(() => repository.checkout('dev')).toThrow(/Branch dev does not exists./);
     });

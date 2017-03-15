@@ -6,6 +6,10 @@ export default function createStore(snapshot = {}) {
     const storage = snapshot;
 
     const store = {
+        has(hash) {
+            return !!storage[hash];
+        },
+
         keys() {
             return Object.keys(storage);
         },
@@ -27,6 +31,14 @@ export default function createStore(snapshot = {}) {
             }
 
             return { ...entry };
+        },
+
+        remove(hash) {
+            if (!store.has(hash)) {
+                throw new Error(`Entry ${hash} not found.`);
+            }
+
+            delete storage[hash];
         },
 
         subscribe(subscriber) {
