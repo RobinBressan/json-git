@@ -307,7 +307,7 @@ const newRepository = createRepository(snapshot);
 
 ### Subscription
 
-A repository exposes a `subscribe` and `unsubscribe` methods to be notified when a change occur on the repository:
+A repository exposes a `subscribe` and `unsubscribe` methods to be notified when a change occurs in the repository:
 
 ```js
 const subscriber = ({ head }) => console.log(`The new head of the repository is ${head}`);
@@ -322,6 +322,19 @@ const commitHash = repository.commit('robin', 'first commit', tree);
 
 // you can unsubscribe at anytime
 repository.unsubscribe(subscriber);
+```
+
+For example, if you want to persist your repository at each change into the local storage:
+
+```js
+repository.subscribe(() => localStorage.setItem('repository', repository.toJSON()));
+```
+
+And when you load the repository:
+
+```js
+const snapshot = JSON.parse(localStorage.getItem('repository'));
+const repository = createRepository(snapshot);
 ```
 
 ### API
