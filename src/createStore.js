@@ -1,6 +1,8 @@
+import { EventEmitter } from 'events';
 import computeHash from './computeHash';
 
 export default function createStore(snapshot = {}) {
+    const emitter = new EventEmitter();
     const store = snapshot;
 
     return {
@@ -8,9 +10,11 @@ export default function createStore(snapshot = {}) {
             return Object.keys(store);
         },
 
-        write(data) {
-            const hash = computeHash(data);
+        write(data, forcedHash) {
+            const hash = forcedHash || computeHash(data);
             store[hash] = data;
+
+            emitter.emit('write', hash);
 
             return hash;
         },
@@ -25,8 +29,16 @@ export default function createStore(snapshot = {}) {
             return { ...entry };
         },
 
+        subscribe(subscriber) {
+            emitter.on('write', subscriber);
+        },
+
         toJSON() {
             return { ...store };
+        },
+
+        unsubscribe(subscriber) {
+            emitter.removeListener('write', subscriber);
         },
     };
 }

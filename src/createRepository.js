@@ -1,3 +1,4 @@
+import { EventEmitter } from 'events';
 import cloneDeep from 'lodash.clonedeep';
 import isEqual from 'lodash.isequal';
 import applyPatch from './applyPatch';
@@ -10,18 +11,22 @@ import findReferenceCommitHash from './findReferenceCommitHash';
 import { EMPTY_HASH } from './computeHash';
 
 export default function createRepository(snapshot) {
+    const emitter = new EventEmitter();
+
     let commits = {};
     let trees = {};
     let refs = {
-        branch: 'master',
+        branch: {
+            value: 'master',
+        },
         heads: {
             master: EMPTY_HASH,
         },
     };
 
     if (snapshot && ensureSnapshot(snapshot)) {
-        commits = snapshot.stores.commit;
-        trees = snapshot.stores.tree;
+        commits = snapshot.commits;
+        trees = snapshot.trees;
         refs = {
             ...refs,
             ...snapshot.refs,
@@ -29,31 +34,53 @@ export default function createRepository(snapshot) {
     }
 
     const commitStore = createStore(commits);
+    const refStore = createStore(refs);
     const treeStore = createCompressedStore(createStore(trees));
 
+    commitStore.subscribe(() => emitter.emit('write'));
+    refStore.subscribe(() => emitter.emit('write'));
+    treeStore.subscribe(() => emitter.emit('write'));
+
     function moveHead(branch, commitHash) {
-        refs.heads[branch] = commitHash;
+        const previousHeads = refStore.read('heads');
+        refStore.write({
+            ...previousHeads,
+            [branch]: commitHash,
+        }, 'heads');
     }
 
     function hasHead(branch) {
-        return !!refs.heads[branch];
+        return !!refStore.read('heads')[branch];
     }
 
     function getHead(branch) {
-        return refs.heads[branch];
+        return refStore.read('heads')[branch];
+    }
+
+    function removeHead(branch) {
+        const previousHeads = refStore.read('heads');
+        delete previousHeads[branch];
+
+        refStore.write({ ...previousHeads }, 'heads');
+    }
+
+    function updateBranch(branch) {
+        refStore.write({
+            value: branch,
+        }, 'branch');
     }
 
     const repository = {
         get branch() {
-            return refs.branch;
+            return refStore.read('branch').value;
         },
 
         get branches() {
-            return Object.keys(refs.heads);
+            return Object.keys(refStore.read('heads'));
         },
 
         get head() {
-            return refs.heads[repository.branch];
+            return getHead(repository.branch);
         },
 
         get log() {
@@ -116,7 +143,7 @@ export default function createRepository(snapshot) {
                 throw new Error(`Branch ${nextBranch} does not exists.`);
             }
 
-            refs.branch = nextBranch;
+            updateBranch(nextBranch);
 
             return repository;
         },
@@ -134,12 +161,12 @@ export default function createRepository(snapshot) {
                 throw new Error('You cannot delete the master branch');
             }
 
-            delete refs.heads[branch];
+            removeHead(branch);
         },
 
         diff(left, right) {
-            const leftCommit = commitStore.read(refs.heads[left] || left);
-            const rightCommit = commitStore.read(refs.heads[right] || right);
+            const leftCommit = commitStore.read(getHead(left) || left);
+            const rightCommit = commitStore.read(getHead(right) || right);
 
             return createPatch(
                 treeStore.read(leftCommit.treeHash),
@@ -191,13 +218,19 @@ export default function createRepository(snapshot) {
             );
         },
 
+        subscribe(subscriber) {
+            emitter.on('write', subscriber);
+        },
+
+        unsubscribe(subscriber) {
+            emitter.removeListener('write', subscriber);
+        },
+
         toJSON() {
             return {
-                refs: { ...refs },
-                stores: {
-                    commit: commitStore.toJSON(),
-                    tree: treeStore.toJSON(),
-                },
+                commits: commitStore.toJSON(),
+                refs: refStore.toJSON(),
+                trees: treeStore.toJSON(),
             };
         },
     };
