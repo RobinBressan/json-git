@@ -58,4 +58,30 @@ describe('createStore()', () => {
             hello: 'world',
         });
     });
+
+    it('should write data with the given hash if provided', () => {
+        const hash = store.write({ hello: 'world' }, 'forcedHash');
+        expect(hash).toBe('forcedHash');
+        expect(store.keys()[0]).toBe('forcedHash');
+        expect(store.read('forcedHash')).toEqual({ hello: 'world' });
+    });
+
+    it('should notify any subscriber when something is written into the store', () => {
+        const subscriber1 = expect.createSpy();
+        store.subscribe(subscriber1);
+
+        const subscriber2 = expect.createSpy();
+        store.subscribe(subscriber2);
+
+        const hash = store.write({ hello: 'world' });
+        expect(subscriber1).toHaveBeenCalledWith(hash);
+        expect(subscriber2).toHaveBeenCalledWith(hash);
+
+        store.unsubscribe(subscriber1);
+
+        const hash2 = store.write({ hello: 'earth' });
+        expect(subscriber1.calls.length).toBe(1);
+        expect(subscriber2).toHaveBeenCalledWith(hash2);
+        expect(subscriber2.calls.length).toBe(2);
+    });
 });

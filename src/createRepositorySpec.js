@@ -414,4 +414,35 @@ describe('createRepository()', () => {
             'master',
         ]);
     });
+
+    it('should notify any subscriber when something is written into the repository', () => {
+        const subscriber1 = expect.createSpy();
+        repository.subscribe(subscriber1);
+
+        const subscriber2 = expect.createSpy();
+        repository.subscribe(subscriber2);
+
+        const commitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar',
+            child: {
+                bar: 'foo',
+            },
+        });
+
+        expect(subscriber1).toHaveBeenCalledWith({ head: commitHash });
+        expect(subscriber2).toHaveBeenCalledWith({ head: commitHash });
+
+        repository.unsubscribe(subscriber1);
+
+        const commitHash2 = repository.commit('robin', 'I commit', {
+            foo: 'bar2',
+            child: {
+                bar: 'foo',
+            },
+        });
+
+        expect(subscriber1.calls.length).toBe(1);
+        expect(subscriber2).toHaveBeenCalledWith({ head: commitHash2 });
+        expect(subscriber2.calls.length).toBe(2);
+    });
 });

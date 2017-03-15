@@ -3,16 +3,16 @@ import computeHash from './computeHash';
 
 export default function createStore(snapshot = {}) {
     const emitter = new EventEmitter();
-    const store = snapshot;
+    const storage = snapshot;
 
-    return {
+    const store = {
         keys() {
-            return Object.keys(store);
+            return Object.keys(storage);
         },
 
         write(data, forcedHash) {
             const hash = forcedHash || computeHash(data);
-            store[hash] = data;
+            storage[hash] = data;
 
             emitter.emit('write', hash);
 
@@ -20,7 +20,7 @@ export default function createStore(snapshot = {}) {
         },
 
         read(hash) {
-            const entry = store[hash];
+            const entry = storage[hash];
 
             if (!entry) {
                 throw new Error(`Entry ${hash} not found.`);
@@ -34,11 +34,13 @@ export default function createStore(snapshot = {}) {
         },
 
         toJSON() {
-            return { ...store };
+            return { ...storage };
         },
 
         unsubscribe(subscriber) {
             emitter.removeListener('write', subscriber);
         },
     };
+
+    return store;
 }

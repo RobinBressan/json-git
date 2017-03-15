@@ -37,9 +37,9 @@ export default function createRepository(snapshot) {
     const refStore = createStore(refs);
     const treeStore = createCompressedStore(createStore(trees));
 
-    commitStore.subscribe(() => emitter.emit('write'));
-    refStore.subscribe(() => emitter.emit('write'));
-    treeStore.subscribe(() => emitter.emit('write'));
+    function getCurrentBranch() {
+        return refStore.read('branch').value;
+    }
 
     function moveHead(branch, commitHash) {
         const previousHeads = refStore.read('heads');
@@ -70,9 +70,13 @@ export default function createRepository(snapshot) {
         }, 'branch');
     }
 
+    refStore.subscribe(() => emitter.emit('write', {
+        head: getHead(getCurrentBranch()),
+    }));
+
     const repository = {
         get branch() {
-            return refStore.read('branch').value;
+            return getCurrentBranch();
         },
 
         get branches() {
