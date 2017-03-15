@@ -3,22 +3,22 @@ import createRepository from './createRepository';
 import { EMPTY_HASH } from './computeHash';
 
 describe('createRepository()', () => {
-    it('should build a repository with a master branch and a default head', () => {
-        const repository = createRepository();
+    let repository;
 
+    beforeEach(() => {
+        repository = createRepository();
+    });
+
+    it('should build a repository with a master branch and a default head', () => {
         expect(repository.branch).toBe('master');
         expect(repository.head).toBe(EMPTY_HASH);
     });
 
     it('should trigger an error when trying to read tree without any commits', () => {
-        const repository = createRepository();
-
         expect(() => repository.tree).toThrow(/There isn't a tree yet. You must do your first commit for that./);
     });
 
     it('should expose a commit() method to create a new commit', () => {
-        const repository = createRepository();
-
         const commitHash = repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -57,7 +57,6 @@ describe('createRepository()', () => {
     });
 
     it('should expose a checkout() method to create/change branch', () => {
-        const repository = createRepository();
         const firstCommitHash = repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -102,20 +101,14 @@ describe('createRepository()', () => {
     });
 
     it('should trigger an error when trying to checkout an unknown branch', () => {
-        const repository = createRepository();
-
         expect(() => repository.checkout('dev')).toThrow(/Branch dev does not exists./);
     });
 
     it('should trigger an error when trying to create a known branch', () => {
-        const repository = createRepository();
-
         expect(() => repository.checkout('master', true)).toThrow(/Branch master already exists./);
     });
 
     it('should return all commits when getting log attribute', () => {
-        const repository = createRepository();
-
         const firstCommitHash = repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -143,8 +136,6 @@ describe('createRepository()', () => {
     });
 
     it('should return the full repository data when toJSON() is called', () => {
-        const repository = createRepository();
-
         const firstCommitHash = repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -160,51 +151,51 @@ describe('createRepository()', () => {
         });
 
         const data = repository.toJSON();
-        const treeHashes = Object.keys(data.stores.tree);
+        const treeHashes = Object.keys(data.trees);
 
         expect(repository.toJSON()).toEqual({
             refs: {
-                branch: 'master',
+                branch: {
+                    value: 'master',
+                },
                 heads: {
                     master: secondCommitHash,
                 },
             },
-            stores: {
-                commit: {
-                    [firstCommitHash]: {
-                        author: 'robin',
-                        date: data.stores.commit[firstCommitHash].date,
-                        message: 'I commit',
-                        parent: EMPTY_HASH,
-                        treeHash: treeHashes[0],
-                    },
-                    [secondCommitHash]: {
-                        author: 'robin',
-                        date: data.stores.commit[secondCommitHash].date,
-                        message: 'I commit',
-                        parent: firstCommitHash,
-                        treeHash: treeHashes[1],
+            commits: {
+                [firstCommitHash]: {
+                    author: 'robin',
+                    date: data.commits[firstCommitHash].date,
+                    message: 'I commit',
+                    parent: EMPTY_HASH,
+                    treeHash: treeHashes[0],
+                },
+                [secondCommitHash]: {
+                    author: 'robin',
+                    date: data.commits[secondCommitHash].date,
+                    message: 'I commit',
+                    parent: firstCommitHash,
+                    treeHash: treeHashes[1],
+                },
+            },
+            trees: {
+                [treeHashes[0]]: {
+                    foo: 'bar',
+                    child: {
+                        bar: 'foo',
                     },
                 },
-                tree: {
-                    [treeHashes[0]]: {
-                        foo: 'bar',
-                        child: {
-                            bar: 'foo',
-                        },
-                    },
-                    [treeHashes[1]]: {
-                        foo: 'bar2',
-                        child: `$$ref:${treeHashes[0]}`,
-                    },
+                [treeHashes[1]]: {
+                    foo: 'bar2',
+                    child: `$$ref:${treeHashes[0]}`,
                 },
             },
         });
     });
 
     it('should load an existing repository when a snapshot is given to createRepository', () => {
-        const snapshot = JSON.parse('{"refs":{"branch":"master","heads":{"master":"ddd0ed1cc"}},"stores":{"commit":{"1ad2fa1c":{"author":"robin","date":"2017-02-03T16:29:24.836Z","message":"I commit","treeHash":"20d2a220c","parent":"0000000000"},"ddd0ed1cc":{"author":"robin","date":"2017-02-03T16:29:24.836Z","message":"I commit","treeHash":"b1a13bdd0c","parent":"1ad2fa1c"}},"tree":{"20d2a220c":{"foo":"bar","child":{"bar":"foo"}},"b1a13bdd0c":{"foo":"bar2","child":{"bar":"foo2"}}}}}');
-        const repository = createRepository(snapshot);
+        const snapshot = JSON.parse('{"refs":{"branch":{"value":"master"},"heads":{"master":"ddd0ed1cc"}},"commits":{"1ad2fa1c":{"author":"robin","date":"2017-02-03T16:29:24.836Z","message":"I commit","treeHash":"20d2a220c","parent":"0000000000"},"ddd0ed1cc":{"author":"robin","date":"2017-02-03T16:29:24.836Z","message":"I commit","treeHash":"b1a13bdd0c","parent":"1ad2fa1c"}},"trees":{"20d2a220c":{"foo":"bar","child":{"bar":"foo"}},"b1a13bdd0c":{"foo":"bar2","child":{"bar":"foo2"}}}}');
+        repository = createRepository(snapshot);
 
         expect(repository.branch).toBe('master');
         expect(repository.head).toBe('ddd0ed1cc');
@@ -217,8 +208,6 @@ describe('createRepository()', () => {
     });
 
     it('should throw an error if we commit the same tree as head', () => {
-        const repository = createRepository();
-
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -235,8 +224,6 @@ describe('createRepository()', () => {
     });
 
     it('should return a json patch when diff() is called', () => {
-        const repository = createRepository();
-
         const firstCommitHash = repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -272,8 +259,6 @@ describe('createRepository()', () => {
     });
 
     it('should revert the changes introduced by a commit when revert() is called', () => {
-        const repository = createRepository();
-
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -310,8 +295,6 @@ describe('createRepository()', () => {
     });
 
     it('should merge the target branch into the current when merge() is called', () => {
-        const repository = createRepository();
-
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -353,8 +336,6 @@ describe('createRepository()', () => {
     });
 
     it('should merge the target branch into the current when merge() is called and call the resolver on any conflict', () => {
-        const repository = createRepository();
-
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -394,7 +375,6 @@ describe('createRepository()', () => {
     });
 
     it('should return list of all branches when branches() is called', () => {
-        const repository = createRepository();
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -411,7 +391,6 @@ describe('createRepository()', () => {
     });
 
     it('should delete a branch when deleteBranch() is called', () => {
-        const repository = createRepository();
         repository.commit('robin', 'I commit', {
             foo: 'bar',
             child: {
@@ -434,5 +413,36 @@ describe('createRepository()', () => {
         expect(repository.branches).toEqual([
             'master',
         ]);
+    });
+
+    it('should notify any subscriber when something is written into the repository', () => {
+        const subscriber1 = expect.createSpy();
+        repository.subscribe(subscriber1);
+
+        const subscriber2 = expect.createSpy();
+        repository.subscribe(subscriber2);
+
+        const commitHash = repository.commit('robin', 'I commit', {
+            foo: 'bar',
+            child: {
+                bar: 'foo',
+            },
+        });
+
+        expect(subscriber1).toHaveBeenCalledWith({ head: commitHash });
+        expect(subscriber2).toHaveBeenCalledWith({ head: commitHash });
+
+        repository.unsubscribe(subscriber1);
+
+        const commitHash2 = repository.commit('robin', 'I commit', {
+            foo: 'bar2',
+            child: {
+                bar: 'foo',
+            },
+        });
+
+        expect(subscriber1.calls.length).toBe(1);
+        expect(subscriber2).toHaveBeenCalledWith({ head: commitHash2 });
+        expect(subscriber2.calls.length).toBe(2);
     });
 });

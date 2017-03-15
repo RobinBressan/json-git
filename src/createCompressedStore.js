@@ -26,8 +26,16 @@ export default function createCompressedStore(store) {
             return expandObject(store.read(hash), compressedStore);
         },
 
+        subscribe(subscriber) {
+            return store.subscribe(subscriber);
+        },
+
         toJSON() {
             return store.toJSON();
+        },
+
+        unsubscribe(subscriber) {
+            return store.unsubscribe(subscriber);
         },
     };
 

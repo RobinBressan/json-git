@@ -1,6 +1,6 @@
 {
   "name": "json-git",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A pure JS local Git to versionize any JSON",
   "main": "./lib/createRepository.js",
   "scripts": {
@@ -33,6 +33,7 @@
     "lodash.memoize": "4.1.2",
     "lodash.set": "4.3.2",
     "lodash.unset": "4.5.2",
+    "lodash.zipobject": "4.1.3",
     "rusha": "0.8.5"
   },
   "devDependencies": {

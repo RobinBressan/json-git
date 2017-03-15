@@ -1,12 +1,13 @@
 export default function ensureSnapshot(snapshot) {
-    if (!snapshot.stores) {
-        return false;
-    }
-    if (!snapshot.stores.commit || !snapshot.stores.tree) {
+    if (!snapshot.refs) {
         return false;
     }
 
-    if (!snapshot.refs) {
+    if (!snapshot.commits) {
+        return false;
+    }
+
+    if (!snapshot.trees) {
         return false;
     }
 
@@ -22,7 +23,7 @@ export default function ensureSnapshot(snapshot) {
         return false;
     }
 
-    if (!snapshot.refs.heads[snapshot.refs.branch]) {
+    if (!snapshot.refs.heads[snapshot.refs.branch.value]) {
         return false;
     }
 
