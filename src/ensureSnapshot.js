@@ -1,4 +1,26 @@
-export default function ensureSnapshot(snapshot) {
+// @flow
+import type { Hash } from './computeHash';
+import type { Storage } from './createStore';
+
+type Refs = {
+    branch: {
+        value: string,
+    },
+    detached?: {
+        head: Hash,
+    },
+    heads: {
+        [k: string]: Hash,
+    }
+};
+
+export type Snapshot = {
+    refs: Refs,
+    commits: Storage,
+    trees: Storage,
+};
+
+export default function ensureSnapshot(snapshot: Snapshot): boolean {
     if (!snapshot.refs) {
         return false;
     }

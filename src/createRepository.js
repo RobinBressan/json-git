@@ -1,21 +1,40 @@
-import { EventEmitter } from 'events';
+// @flow
+import events from 'events';
 import cloneDeep from 'lodash.clonedeep';
 import isEqual from 'lodash.isequal';
 import applyPatch from './applyPatch';
 import buildMergePatch from './buildMergePatch';
 import createPatch from './createPatch';
 import createStore from './createStore';
-import createCompressedStore from './createCompressedStore';
+import createHashStore from './createHashStore';
+import createCompressedHashStore from './createCompressedHashStore';
 import ensureSnapshot from './ensureSnapshot';
 import findReferenceCommitHash from './findReferenceCommitHash';
 import { EMPTY_HASH } from './computeHash';
 
-export default function createRepository(snapshot) {
-    const emitter = new EventEmitter();
+import type { CompressedHashStore } from './createCompressedHashStore';
+import type { Hash } from './computeHash';
+import type { HashStore } from './createHashStore';
+import type { Patch } from './createPatch';
+import type { Snapshot } from './ensureSnapshot';
+import type { Storage, Store } from './createStore';
 
-    let commits = {};
-    let trees = {};
-    let refs = {
+type Commit = {
+    author: string,
+    date: string,
+    message: string,
+    treeHash: Hash,
+    parent: Hash,
+};
+type Resolver = (payload: Object, value: mixed, reject: () => void) => void;
+type Subscriber = (payload: Object) => void;
+
+export default function createRepository(snapshot: Snapshot): Object {
+    const emitter = new events.EventEmitter();
+
+    let commits: Object = {};
+    let trees: Object = {};
+    let refs: Object = {
         branch: {
             value: 'master',
         },
@@ -33,64 +52,98 @@ export default function createRepository(snapshot) {
         };
     }
 
-    const commitStore = createStore(commits);
-    const refStore = createStore(refs);
-    const treeStore = createCompressedStore(createStore(trees));
+    const commitStore: HashStore = createHashStore(createStore(commits));
+    const refStore: Store = createStore(refs);
+    const treeStore: CompressedHashStore = createCompressedHashStore(createHashStore(createStore(trees)));
 
-    function getCurrentBranch() {
+    function getCurrentBranch(): string {
         return refStore.read('branch').value;
     }
 
-    function moveHead(branch, commitHash) {
-        const previousHeads = refStore.read('heads');
-        refStore.write({
-            ...previousHeads,
-            [branch]: commitHash,
-        }, 'heads');
+    function moveDetachedHead(commitHash: Hash): void {
+        refStore.write('detached', {
+            head: commitHash,
+        });
     }
 
-    function hasHead(branch) {
+    function moveHead(branch: string, commitHash: Hash): void {
+        const previousHeads: Object = refStore.read('heads');
+        refStore.write('heads', {
+            ...previousHeads,
+            [branch]: commitHash,
+        });
+    }
+
+    function hasDetachedHead(): boolean {
+        return refStore.has('detached');
+    }
+
+    function hasHead(branch: string): boolean {
         return !!refStore.read('heads')[branch];
     }
 
-    function getHead(branch) {
+    function getDetachedHead(): Hash {
+        return refStore.read('detached').head;
+    }
+
+    function getHead(branch: string): Hash {
         return refStore.read('heads')[branch];
     }
 
-    function removeHead(branch) {
+    function removeDetachedHead(): void {
+        refStore.remove('detached');
+    }
+
+    function removeHead(branch: string): void {
         const previousHeads = refStore.read('heads');
         delete previousHeads[branch];
 
-        refStore.write({ ...previousHeads }, 'heads');
+        refStore.write('heads', { ...previousHeads });
     }
 
-    function updateBranch(branch) {
-        refStore.write({
+    function updateBranch(branch: string): void {
+        refStore.write('branch', {
             value: branch,
-        }, 'branch');
+        });
     }
 
-    refStore.subscribe(() => emitter.emit('write', {
-        head: getHead(getCurrentBranch()),
-    }));
+    refStore.subscribe(() => {
+        emitter.emit('write', {
+            head: hasDetachedHead() ? getDetachedHead() : getHead(getCurrentBranch()),
+        });
+    });
 
     const repository = {
+        // $FlowIssue - get/set properties not yet supported
         get branch() {
+            if (hasDetachedHead()) {
+                throw new Error(`You are in detached mode on ${getDetachedHead()} `);
+            }
+
             return getCurrentBranch();
         },
 
+        // $FlowIssue - get/set properties not yet supported
         get branches() {
             return Object.keys(refStore.read('heads'));
         },
 
-        get head() {
-            return getHead(repository.branch);
+        // $FlowIssue - get/set properties not yet supported
+        get detached() {
+            return hasDetachedHead();
         },
 
-        get log() {
+        // $FlowIssue - get/set properties not yet supported
+        get head() {
+            return hasDetachedHead() ? getDetachedHead() : getHead(repository.branch);
+        },
+
+        // $FlowIssue - get/set properties not yet supported
+        get log(): Storage {
             return commitStore.toJSON();
         },
 
+        // $FlowIssue - get/set properties not yet supported
         get tree() {
             if (repository.head === EMPTY_HASH) {
                 throw new Error("There isn't a tree yet. You must do your first commit for that.");
@@ -100,11 +153,12 @@ export default function createRepository(snapshot) {
             return cloneDeep(treeStore.read(commit.treeHash));
         },
 
-        apply(patch, resolver) {
+        apply(patch: Patch, resolver: ?Function): Object {
+            // $FlowIssue - get/set properties not yet supported
             return applyPatch(patch, repository.tree, resolver);
         },
 
-        commit(author, message, tree) {
+        commit(author: string, message: string, tree: Object): Hash {
             if (typeof author !== 'string' || author.length === 0) {
                 throw new Error('Author is mandatory');
             }
@@ -113,8 +167,9 @@ export default function createRepository(snapshot) {
                 throw new Error('Message is mandatory');
             }
 
-            let lastTreeHash = null;
+            let lastTreeHash: ?Hash = null;
             if (repository.head !== EMPTY_HASH) {
+                // $FlowIssue - get/set properties not yet supported
                 lastTreeHash = commitStore.read(repository.head).treeHash;
 
                 if (!tree || isEqual(treeStore.read(lastTreeHash), tree)) {
@@ -122,37 +177,52 @@ export default function createRepository(snapshot) {
                 }
             }
 
-            const treeHash = treeStore.write(cloneDeep(tree), lastTreeHash);
-            const commitHash = commitStore.write({
+            const treeHash: Hash = treeStore.write(cloneDeep(tree), lastTreeHash);
+            const commitHash: Hash = commitStore.write({
                 author,
                 date: (new Date()).toISOString(),
                 message,
                 treeHash,
+                // $FlowIssue - get/set properties not yet supported
                 parent: repository.head,
             });
 
-            moveHead(repository.branch, commitHash);
+            if (hasDetachedHead()) {
+                moveDetachedHead(commitHash);
+            } else {
+                // $FlowIssue - get/set properties not yet supported
+                moveHead(repository.branch, commitHash);
+            }
 
             return commitHash;
         },
 
-        checkout(nextBranch, create = false) {
-            if (create) {
-                if (hasHead(nextBranch)) {
-                    throw new Error(`Branch ${nextBranch} already exists.`);
-                }
+        checkout(target: string | Hash, create: boolean = false): void {
+            if (commitStore.has(target)) {
+                moveDetachedHead(target);
 
-                moveHead(nextBranch, repository.head);
-            } else if (!hasHead(nextBranch)) {
-                throw new Error(`Branch ${nextBranch} does not exists.`);
+                return;
             }
 
-            updateBranch(nextBranch);
+            if (create) {
+                if (hasHead(target)) {
+                    throw new Error(`Branch ${target} already exists.`);
+                }
 
-            return repository;
+                // $FlowIssue - get/set properties not yet supported
+                moveHead(target, repository.head);
+            } else if (!hasHead(target)) {
+                throw new Error(`Branch ${target} does not exists.`);
+            }
+
+            updateBranch(target);
+
+            if (hasDetachedHead()) {
+                removeDetachedHead();
+            }
         },
 
-        deleteBranch(branch) {
+        deleteBranch(branch: string): void {
             if (!hasHead(branch)) {
                 throw new Error(`Branch ${branch} doesn't exist`);
             }
@@ -168,9 +238,20 @@ export default function createRepository(snapshot) {
             removeHead(branch);
         },
 
-        diff(left, right) {
-            const leftCommit = commitStore.read(getHead(left) || left);
-            const rightCommit = commitStore.read(getHead(right) || right);
+        diff(left: string | Hash, right: string | Hash): Patch {
+            if (!commitStore.has(left) && !hasHead(left)) {
+                throw new Error(`Branch ${left} doesn't exist`);
+            }
+
+            if (!commitStore.has(right) && !hasHead(right)) {
+                throw new Error(`Branch ${right} doesn't exist`);
+            }
+
+            const leftHead: Hash = commitStore.has(left) ? left : getHead(left);
+            const rightHead: Hash = commitStore.has(right) ? right : getHead(right);
+
+            const leftCommit: Commit = commitStore.read(leftHead);
+            const rightCommit: Commit = commitStore.read(rightHead);
 
             return createPatch(
                 treeStore.read(leftCommit.treeHash),
@@ -178,42 +259,48 @@ export default function createRepository(snapshot) {
             );
         },
 
-        merge(author, branch, resolver) {
-            if (!hasHead(branch)) {
-                throw new Error(`Branch ${branch} doesn't exist`);
+        merge(author: string, target: string | Hash, resolver: ?Resolver): Hash {
+            if (!commitStore.has(target) && !hasHead(target)) {
+                throw new Error(`Branch ${target} doesn't exist`);
             }
 
-            const refCommitHash = findReferenceCommitHash(
+            const targetHead: Hash = commitStore.has(target) ? target : getHead(target);
+
+            const refCommitHash: Hash = findReferenceCommitHash(
+                // $FlowIssue - get/set properties not yet supported
                 repository.head,
-                getHead(branch),
+                targetHead,
                 commitStore,
             );
 
-            const mergePatch = buildMergePatch(
+            const mergePatch: Patch = buildMergePatch(
+                // $FlowIssue - get/set properties not yet supported
                 repository.diff(refCommitHash, repository.head),
-                repository.diff(refCommitHash, getHead(branch)),
+                // $FlowIssue - get/set properties not yet supported
+                repository.diff(refCommitHash, targetHead),
                 resolver,
             );
 
             return repository.commit(
                 author,
-                `Merge of ${branch} into ${repository.branch}`,
+                // $FlowIssue - get/set properties not yet supported
+                `Merge of ${target} into ${repository.branch}`,
                 repository.apply(mergePatch),
             );
         },
 
-        revert(author, commitHash, resolver) {
+        revert(author: string, commitHash: Hash, resolver: ?Resolver): Hash {
             if (typeof author !== 'string' || author.length === 0) {
                 throw new Error('Author is mandatory');
             }
 
-            const commit = commitStore.read(commitHash);
+            const commit: Commit = commitStore.read(commitHash);
 
             if (commit.parent === EMPTY_HASH) {
                 throw new Error("You can't revert the first commit.");
             }
 
-            const patch = repository.diff(commitHash, commit.parent);
+            const patch: Patch = repository.diff(commitHash, commit.parent);
 
             return repository.commit(
                 author,
@@ -222,15 +309,15 @@ export default function createRepository(snapshot) {
             );
         },
 
-        subscribe(subscriber) {
+        subscribe(subscriber: Subscriber): void {
             emitter.on('write', subscriber);
         },
 
-        unsubscribe(subscriber) {
+        unsubscribe(subscriber: Subscriber): void {
             emitter.removeListener('write', subscriber);
         },
 
-        toJSON() {
+        toJSON(): Snapshot {
             return {
                 commits: commitStore.toJSON(),
                 refs: refStore.toJSON(),

@@ -8,40 +8,40 @@ describe('createStore()', () => {
         store = createStore();
     });
 
-    it('should write data and return its key when write() is called', () => {
-        const hash = store.write({ hello: 'world' });
-        expect(hash).toBe(store.keys()[0]);
+    it('should write data when write() is called', () => {
+        store.write('foo', { hello: 'world' });
+        expect('foo').toBe(store.keys()[0]);
     });
 
     it('should return data when read() is called with a valid key', () => {
-        const hash = store.write({ hello: 'world' });
-        expect(store.read(hash)).toEqual({ hello: 'world' });
+        store.write('foo', { hello: 'world' });
+        expect(store.read('foo')).toEqual({ hello: 'world' });
     });
 
     it('should throw an error when read() is called with an invalid key', () => {
-        store.write({ hello: 'world' });
+        store.write('foo', { hello: 'world' });
         expect(() => store.read('wrong')).toThrow(/Entry wrong not found/);
     });
 
     it('should return all keys when keys() is called', () => {
-        const hash1 = store.write({ hello: 'world' });
-        const hash2 = store.write({ hello2: 'world2' });
+        store.write('foo', { hello: 'world' });
+        store.write('bar', { hello2: 'world2' });
 
         expect(store.keys()).toEqual([
-            hash1,
-            hash2,
+            'foo',
+            'bar',
         ]);
     });
 
     it('should return all store content when toJSON() is called', () => {
-        const hash1 = store.write({ hello: 'world' });
-        const hash2 = store.write({ hello2: 'world2' });
+        store.write('foo', { hello: 'world' });
+        store.write('bar', { hello2: 'world2' });
 
         expect(store.toJSON()).toEqual({
-            [hash1]: {
+            foo: {
                 hello: 'world',
             },
-            [hash2]: {
+            bar: {
                 hello2: 'world2',
             },
         });
@@ -59,13 +59,6 @@ describe('createStore()', () => {
         });
     });
 
-    it('should write data with the given hash if provided', () => {
-        const hash = store.write({ hello: 'world' }, 'forcedHash');
-        expect(hash).toBe('forcedHash');
-        expect(store.keys()[0]).toBe('forcedHash');
-        expect(store.read('forcedHash')).toEqual({ hello: 'world' });
-    });
-
     it('should notify any subscriber when something is written into the store', () => {
         const subscriber1 = expect.createSpy();
         store.subscribe(subscriber1);
@@ -73,15 +66,21 @@ describe('createStore()', () => {
         const subscriber2 = expect.createSpy();
         store.subscribe(subscriber2);
 
-        const hash = store.write({ hello: 'world' });
-        expect(subscriber1).toHaveBeenCalledWith(hash);
-        expect(subscriber2).toHaveBeenCalledWith(hash);
+        store.write('foo', { hello: 'world' });
+        expect(subscriber1).toHaveBeenCalledWith('foo');
+        expect(subscriber2).toHaveBeenCalledWith('foo');
 
         store.unsubscribe(subscriber1);
 
-        const hash2 = store.write({ hello: 'earth' });
+        store.write('bar', { hello: 'earth' });
         expect(subscriber1.calls.length).toBe(1);
-        expect(subscriber2).toHaveBeenCalledWith(hash2);
+        expect(subscriber2).toHaveBeenCalledWith('bar');
         expect(subscriber2.calls.length).toBe(2);
+    });
+
+    it('should test if a hash exists when has() is called', () => {
+        store.write('foo', { hello: 'world' });
+        expect(store.has('foo')).toBe(true);
+        expect(store.has('bar')).toBe(false);
     });
 });

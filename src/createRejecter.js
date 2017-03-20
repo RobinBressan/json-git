@@ -1,12 +1,14 @@
+// @flow
 export default function createRejecter() {
-    let rejected = false;
+    let rejected: boolean = false;
 
     return {
+        // $FlowIssue - get/set properties not yet supported
         get rejected() {
             return rejected;
         },
 
-        reject() {
+        reject(): void {
             rejected = true;
         },
     };

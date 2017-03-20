@@ -1,3 +1,4 @@
+// @flow
 import cloneDeep from 'lodash.clonedeep';
 import get from 'lodash.get';
 import has from 'lodash.has';
@@ -5,10 +6,14 @@ import set from 'lodash.set';
 import unset from 'lodash.unset';
 import createRejecter from './createRejecter';
 
-export default function applyPatch(patch, data, resolver) {
+import type { Patch } from './createPatch';
+
+export type Resolver = (payload: Object, value: mixed, reject: () => void) => void;
+
+export default function applyPatch(patch: Patch, data: Object, resolver: Resolver) {
     const output = cloneDeep(data);
 
-    patch.forEach((payload) => {
+    patch.forEach((payload: Object) : void => {
         const path = payload.path.slice(1).split('/');
 
         switch (payload.op) {

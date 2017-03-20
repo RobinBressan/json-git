@@ -4,10 +4,19 @@
         "mocha": true,
     },
     "extends": "airbnb-base",
+    "parser": "babel-eslint",
+    "plugins": [
+        "flowtype"
+    ],
     "rules": {
         "import/no-extraneous-dependencies": ["error", {
           "devDependencies": ["**/*Spec.js"]
         }],
         "indent": [2, 4],
+    },
+    "settings": {
+        "flowtype": {
+        "onlyFilesWithFlowAnnotation": true
+        }
     }
 }
