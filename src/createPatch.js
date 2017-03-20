@@ -1,13 +1,22 @@
+// @flow
 import get from 'lodash.get';
 import has from 'lodash.has';
 import forEachDeep from './forEachDeep';
 
-export default function createPatch(left, right) {
+type Operation =
+    { op: 'add', path: string, value: any } |
+    { op: 'replace', path: string, value: any } |
+    { op: 'remove', path: string }
+    ;
+
+export type Patch = Array<Operation>;
+
+export default function createPatch(left: Object, right: Object) {
     const paths = [];
     const patch = [];
 
-    forEachDeep(right, (value, key, path) => {
-        const absolutePath = `/${path.join('/')}`;
+    forEachDeep(right, (value: any, key: string, path: Array<string>) => {
+        const absolutePath: string = `/${path.join('/')}`;
         paths.push(absolutePath);
 
         if (typeof value === 'object') {
@@ -34,8 +43,8 @@ export default function createPatch(left, right) {
         });
     });
 
-    forEachDeep(left, (value, key, path) => {
-        const absolutePath = `/${path.join('/')}`;
+    forEachDeep(left, (value: any, key: string, path: Array<string>) => {
+        const absolutePath: string = `/${path.join('/')}`;
 
         if (paths.includes(absolutePath)) {
             return;
@@ -47,7 +56,7 @@ export default function createPatch(left, right) {
         });
     });
 
-    return patch.sort((a, b) => {
+    return patch.sort((a: Operation, b: Operation) => {
         if (a.op < b.op) {
             return -1;
         }

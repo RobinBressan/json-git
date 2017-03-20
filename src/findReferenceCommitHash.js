@@ -1,7 +1,11 @@
+// @flow
 import intersection from 'lodash.intersection';
 import { EMPTY_HASH } from './computeHash';
 
-function buildHistory(head, commitStore) {
+import type { Hash } from './computeHash';
+import type { HashStore } from './createHashStore';
+
+function buildHistory(head: Hash, commitStore: HashStore) {
     const history = [];
 
     let currentHead = head;
@@ -13,7 +17,11 @@ function buildHistory(head, commitStore) {
     return history;
 }
 
-export default function findReferenceCommitHash(leftHead, rightHead, commitStore) {
+export default function findReferenceCommitHash(
+    leftHead: Hash,
+    rightHead: Hash,
+    commitStore: HashStore,
+): Hash {
     return intersection(
         buildHistory(leftHead, commitStore),
         buildHistory(rightHead, commitStore),

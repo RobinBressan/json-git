@@ -1,26 +1,29 @@
+// @flow
 import cloneDeep from 'lodash.clonedeep';
 import set from 'lodash.set';
 import get from 'lodash.get';
 import memoize from 'lodash.memoize';
 import forEachDeep from './forEachDeep';
 
-export default function expandObject(object, compressedStore) {
-    const output = cloneDeep(object);
-    const read = memoize(compressedStore.read);
+import type { Hash } from './computeHash';
 
-    forEachDeep(output, (value, key, path) => {
+export default function expandObject(object: Object, compressedStore: Object): Object {
+    const output: Object = cloneDeep(object);
+    const read: (key: string) => Object = memoize(compressedStore.read);
+
+    forEachDeep(output, (value: mixed, key: string, path: string) => {
         if (typeof value !== 'string') {
             return;
         }
 
-        const matches = value.match(/\$\$ref:(.+)/);
+        const matches: ?Array<string> = value.match(/\$\$ref:(.+)/);
 
         if (!matches) {
             return;
         }
 
-        const refHash = matches[1];
-        const refValue = get(read(refHash), path);
+        const refHash: Hash = matches[1];
+        const refValue: mixed = get(read(refHash), path);
 
         set(output, path, refValue);
     });

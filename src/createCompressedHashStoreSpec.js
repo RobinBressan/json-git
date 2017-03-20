@@ -1,9 +1,9 @@
 import expect from 'expect';
-import createCompressedStore from './createCompressedStore';
+import createCompressedHashStore from './createCompressedHashStore';
 
-describe('createCompressedStore()', () => {
+describe('createCompressedHashStore()', () => {
     let store;
-    let compressedStore;
+    let compressedHashStore;
 
     beforeEach(() => {
         store = {
@@ -12,7 +12,7 @@ describe('createCompressedStore()', () => {
             toJSON: expect.createSpy(),
             write: expect.createSpy(),
         };
-        compressedStore = createCompressedStore(store);
+        compressedHashStore = createCompressedHashStore(store);
     });
 
     it('should first compress data and then give it to its store when write() is called', () => {
@@ -21,7 +21,7 @@ describe('createCompressedStore()', () => {
         });
         store.write.andReturn('b4a');
 
-        const hash = compressedStore.write({
+        const hash = compressedHashStore.write({
             foo: 'bar',
             foo2: 'bar2',
         }, 'ae3');
@@ -48,7 +48,7 @@ describe('createCompressedStore()', () => {
             };
         }).andCallThrough();
 
-        const data = compressedStore.read('b4a');
+        const data = compressedHashStore.read('b4a');
 
         expect(store.read).toHaveBeenCalledWith('b4a');
         expect(store.read).toHaveBeenCalledWith('ae3');
@@ -61,12 +61,12 @@ describe('createCompressedStore()', () => {
     it('should call store.keys() when keys() is called', () => {
         store.keys.andReturn(['foo']);
 
-        expect(compressedStore.keys()).toEqual(['foo']);
+        expect(compressedHashStore.keys()).toEqual(['foo']);
     });
 
     it('should call store.toJSON() when toJSON() is called', () => {
         store.toJSON.andReturn(['foo']);
 
-        expect(compressedStore.toJSON()).toEqual(['foo']);
+        expect(compressedHashStore.toJSON()).toEqual(['foo']);
     });
 });

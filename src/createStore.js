@@ -1,55 +1,58 @@
-import { EventEmitter } from 'events';
-import computeHash from './computeHash';
+// @flow
+import events from 'events';
 
-export default function createStore(snapshot = {}) {
-    const emitter = new EventEmitter();
-    const storage = snapshot;
+export type StoreSubscriber = (key: string) => void;
+export type Storage = {
+    [k: string]: Object,
+};
+export type Store = Object;
+
+export default function createStore(snapshot: Storage): Store {
+    const emitter = new events.EventEmitter();
+    const storage: Storage = snapshot || {};
 
     const store = {
-        has(hash) {
-            return !!storage[hash];
+        has(key: string): boolean {
+            return !!storage[key];
         },
 
-        keys() {
+        keys(): Array<string> {
             return Object.keys(storage);
         },
 
-        write(data, forcedHash) {
-            const hash = forcedHash || computeHash(data);
-            storage[hash] = data;
+        write(key: string, data: Object): void {
+            storage[key] = data;
 
-            emitter.emit('write', hash);
-
-            return hash;
+            emitter.emit('write', key);
         },
 
-        read(hash) {
-            const entry = storage[hash];
+        read(key: string): Object {
+            const entry = storage[key];
 
             if (!entry) {
-                throw new Error(`Entry ${hash} not found.`);
+                throw new Error(`Entry ${key} not found.`);
             }
 
             return { ...entry };
         },
 
-        remove(hash) {
-            if (!store.has(hash)) {
-                throw new Error(`Entry ${hash} not found.`);
+        remove(key: string): void {
+            if (!store.has(key)) {
+                throw new Error(`Entry ${key} not found.`);
             }
 
-            delete storage[hash];
+            delete storage[key];
         },
 
-        subscribe(subscriber) {
+        subscribe(subscriber: StoreSubscriber): void {
             emitter.on('write', subscriber);
         },
 
-        toJSON() {
+        toJSON(): Object {
             return { ...storage };
         },
 
-        unsubscribe(subscriber) {
+        unsubscribe(subscriber: StoreSubscriber): void {
             emitter.removeListener('write', subscriber);
         },
     };
